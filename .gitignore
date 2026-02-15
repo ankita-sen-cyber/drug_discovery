@@ -19,3 +19,6 @@ dist/
 # Local Codex/editor/session artifacts
 .codex/
 
+# Generated literature corpus (keep folder scaffold only)
+data/literature/*
+!data/literature/.gitkeep

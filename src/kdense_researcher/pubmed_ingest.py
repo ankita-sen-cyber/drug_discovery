@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import ssl
 import textwrap
 import urllib.error
 import urllib.parse
@@ -52,6 +53,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=200,
         help="Safety cap to prevent accidental huge downloads",
     )
+    p.add_argument(
+        "--ca-bundle",
+        default="",
+        help="Path to PEM CA bundle file for TLS verification (corp/self-signed certs)",
+    )
+    p.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable TLS verification (debug only; not recommended)",
+    )
     return p
 
 
@@ -68,12 +79,18 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    ssl_context = build_ssl_context(
+        ca_bundle=args.ca_bundle,
+        insecure=args.insecure,
+    )
+
     try:
         pmids = search_pmids(
             query=args.query,
             max_results=args.max_results,
             email=args.email,
             api_key=os.getenv("NCBI_API_KEY", ""),
+            ssl_context=ssl_context,
         )
     except urllib.error.URLError as exc:
         raise SystemExit(
@@ -89,6 +106,7 @@ def main() -> None:
             pmids=pmids,
             email=args.email,
             api_key=os.getenv("NCBI_API_KEY", ""),
+            ssl_context=ssl_context,
         )
     except urllib.error.URLError as exc:
         raise SystemExit(
@@ -111,7 +129,13 @@ def main() -> None:
     print(f"Fetched {len(articles)} records; wrote {written} markdown files to {out_dir}")
 
 
-def search_pmids(query: str, max_results: int, email: str, api_key: str) -> list[str]:
+def search_pmids(
+    query: str,
+    max_results: int,
+    email: str,
+    api_key: str,
+    ssl_context: ssl.SSLContext,
+) -> list[str]:
     params = {
         "db": "pubmed",
         "term": query,
@@ -124,7 +148,7 @@ def search_pmids(query: str, max_results: int, email: str, api_key: str) -> list
     if api_key:
         params["api_key"] = api_key
     url = f"{ESEARCH_URL}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=30) as resp:
+    with urllib.request.urlopen(url, timeout=30, context=ssl_context) as resp:
         payload = resp.read().decode("utf-8")
     import json
 
@@ -132,7 +156,12 @@ def search_pmids(query: str, max_results: int, email: str, api_key: str) -> list
     return data.get("esearchresult", {}).get("idlist", [])
 
 
-def fetch_articles(pmids: list[str], email: str, api_key: str) -> list[PubMedArticle]:
+def fetch_articles(
+    pmids: list[str],
+    email: str,
+    api_key: str,
+    ssl_context: ssl.SSLContext,
+) -> list[PubMedArticle]:
     params = {
         "db": "pubmed",
         "id": ",".join(pmids),
@@ -143,7 +172,7 @@ def fetch_articles(pmids: list[str], email: str, api_key: str) -> list[PubMedArt
     if api_key:
         params["api_key"] = api_key
     url = f"{EFETCH_URL}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=60) as resp:
+    with urllib.request.urlopen(url, timeout=60, context=ssl_context) as resp:
         xml_text = resp.read().decode("utf-8")
     return parse_pubmed_xml(xml_text)
 
@@ -206,6 +235,17 @@ def render_markdown(article: PubMedArticle) -> str:
         "## Abstract\n\n"
         f"{wrapped}\n"
     )
+
+
+def build_ssl_context(ca_bundle: str, insecure: bool) -> ssl.SSLContext:
+    if insecure:
+        return ssl._create_unverified_context()
+    if ca_bundle:
+        return ssl.create_default_context(cafile=ca_bundle)
+    env_bundle = os.getenv("SSL_CERT_FILE", "").strip()
+    if env_bundle:
+        return ssl.create_default_context(cafile=env_bundle)
+    return ssl.create_default_context()
 
 
 if __name__ == "__main__":
