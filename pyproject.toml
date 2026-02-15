@@ -12,10 +12,10 @@ dependencies = []
 
 [project.scripts]
 kdense-research = "kdense_researcher.cli:main"
+kdense-ingest-pubmed = "kdense_researcher.pubmed_ingest:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

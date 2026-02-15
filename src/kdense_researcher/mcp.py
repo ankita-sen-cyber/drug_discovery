@@ -39,7 +39,12 @@ class MCPProvider(Protocol):
 class NullMCPProvider:
     """Default provider with a static tool catalog and no live MCP calls."""
 
+    def __init__(self, profile: str = "chembl"):
+        self.profile = profile
+
     def list_tools(self) -> list[MCPToolSpec]:
+        if self.profile == "chembl":
+            return build_chembl_tool_catalog()
         return build_drug_discovery_tool_catalog()
 
     def fetch_context(self, question: str, top_k: int = 3) -> list[MCPContextItem]:
@@ -47,8 +52,9 @@ class NullMCPProvider:
 
 
 def build_drug_discovery_tool_catalog() -> list[MCPToolSpec]:
-    # These are tool contracts expected from connected MCP servers.
-    # They are intentionally server-agnostic with a server_hint.
+    # ChEMBL entries mirror tool names documented in:
+    # https://github.com/Augmented-Nature/ChEMBL-MCP-Server
+    # Additional non-ChEMBL tools are retained for full workflow coverage.
     return [
         MCPToolSpec(
             tool_id="chembl.search_compounds",
@@ -59,19 +65,64 @@ def build_drug_discovery_tool_catalog() -> list[MCPToolSpec]:
             optional_args=("limit",),
         ),
         MCPToolSpec(
-            tool_id="chembl.get_compound",
+            tool_id="chembl.get_compound_info",
             category="compound",
             purpose="Retrieve canonical ChEMBL compound details and properties.",
             server_hint="chembl",
             required_args=("chembl_id",),
         ),
         MCPToolSpec(
+            tool_id="chembl.search_similar_compounds",
+            category="compound",
+            purpose="Find structurally similar compounds for analog analysis.",
+            server_hint="chembl",
+            required_args=("smiles",),
+            optional_args=("similarity_threshold", "limit"),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_substructure",
+            category="compound",
+            purpose="Find compounds containing a substructure.",
+            server_hint="chembl",
+            required_args=("smiles",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.analyze_molecular_properties",
+            category="compound",
+            purpose="Assess molecular descriptors and drug-likeness.",
+            server_hint="chembl",
+            required_args=("chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.get_compound_bioactivities",
+            category="bioactivity",
+            purpose="Pull activity records for a compound across assays/targets.",
+            server_hint="chembl",
+            required_args=("chembl_id",),
+            optional_args=("activity_type", "limit"),
+        ),
+        MCPToolSpec(
             tool_id="chembl.search_activities",
             category="bioactivity",
-            purpose="Fetch activity values for a target, assay type, or compound.",
+            purpose="Retrieve activity data with flexible filters.",
             server_hint="chembl",
-            required_args=("target_or_compound",),
-            optional_args=("assay_type", "activity_type", "limit"),
+            required_args=("filters",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.analyze_sar",
+            category="bioactivity",
+            purpose="Summarize structure-activity relationships.",
+            server_hint="chembl",
+            required_args=("chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.predict_bioactivity",
+            category="bioactivity",
+            purpose="Estimate likely bioactivity from compound properties.",
+            server_hint="chembl",
+            required_args=("smiles",),
         ),
         MCPToolSpec(
             tool_id="chembl.search_targets",
@@ -80,6 +131,139 @@ def build_drug_discovery_tool_catalog() -> list[MCPToolSpec]:
             server_hint="chembl",
             required_args=("query",),
             optional_args=("organism", "limit"),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.get_target_info",
+            category="target",
+            purpose="Retrieve target metadata including identifiers/classification.",
+            server_hint="chembl",
+            required_args=("target_chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_assays",
+            category="assay",
+            purpose="Find assays relevant to a target or compound context.",
+            server_hint="chembl",
+            required_args=("query",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.get_assay_info",
+            category="assay",
+            purpose="Retrieve assay protocol/details for evidence quality checks.",
+            server_hint="chembl",
+            required_args=("assay_chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.get_mechanism_of_action",
+            category="mechanism",
+            purpose="Get known mechanism-of-action annotations.",
+            server_hint="chembl",
+            required_args=("chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.get_drug_indications",
+            category="clinical",
+            purpose="Retrieve disease indications linked to compound entities.",
+            server_hint="chembl",
+            required_args=("chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_target_chembl_id",
+            category="target",
+            purpose="Resolve target-centric records by ChEMBL target id.",
+            server_hint="chembl",
+            required_args=("target_chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_target_name",
+            category="target",
+            purpose="Find target records by common target name.",
+            server_hint="chembl",
+            required_args=("target_name",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_organism",
+            category="target",
+            purpose="Filter targets by organism.",
+            server_hint="chembl",
+            required_args=("organism",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_target_type",
+            category="target",
+            purpose="Filter targets by target type.",
+            server_hint="chembl",
+            required_args=("target_type",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_protein_class",
+            category="target",
+            purpose="Filter targets by protein class.",
+            server_hint="chembl",
+            required_args=("protein_class",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_by_uniprot",
+            category="target",
+            purpose="Map UniProt ids to ChEMBL target records.",
+            server_hint="chembl",
+            required_args=("uniprot_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.advanced_target_search",
+            category="target",
+            purpose="Multi-criteria target search across classes and metadata.",
+            server_hint="chembl",
+            required_args=("filters",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.analyze_target_landscape",
+            category="target",
+            purpose="Summarize a target landscape for a disease area.",
+            server_hint="chembl",
+            required_args=("query",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.analyze_target_druggability",
+            category="target",
+            purpose="Assess target druggability and tractability clues.",
+            server_hint="chembl",
+            required_args=("target_chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.compare_targets",
+            category="target",
+            purpose="Compare targets to prioritize intervention candidates.",
+            server_hint="chembl",
+            required_args=("target_chembl_ids",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.find_novel_targets",
+            category="target",
+            purpose="Find potentially underexplored targets for hypotheses.",
+            server_hint="chembl",
+            required_args=("disease_or_pathway",),
+            optional_args=("limit",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_target_pathways",
+            category="pathway",
+            purpose="Fetch pathway links for a target.",
+            server_hint="chembl",
+            required_args=("target_chembl_id",),
+        ),
+        MCPToolSpec(
+            tool_id="chembl.search_target_diseases",
+            category="disease",
+            purpose="Fetch disease associations for a target.",
+            server_hint="chembl",
+            required_args=("target_chembl_id",),
         ),
         MCPToolSpec(
             tool_id="opentargets.search_target",
@@ -146,16 +330,26 @@ def build_drug_discovery_tool_catalog() -> list[MCPToolSpec]:
     ]
 
 
+def build_chembl_tool_catalog() -> list[MCPToolSpec]:
+    return [t for t in build_drug_discovery_tool_catalog() if t.server_hint == "chembl"]
+
+
 def build_anticancer_tool_plan(
     drug_name: str,
     cancer_type: str,
     phenotype: str = "drug resistance",
+    profile: str = "chembl",
 ) -> list[MCPToolCallPlan]:
-    return [
+    chembl_plan = [
         MCPToolCallPlan(
             tool_id="chembl.search_compounds",
             reason="Resolve canonical compound entities and synonyms.",
             arguments={"query": drug_name, "limit": "10"},
+        ),
+        MCPToolCallPlan(
+            tool_id="chembl.get_compound_info",
+            reason="Pull canonical identifiers/properties for downstream joins.",
+            arguments={"chembl_id": "<from_search_compounds_top_hit>"},
         ),
         MCPToolCallPlan(
             tool_id="chembl.search_targets",
@@ -163,15 +357,35 @@ def build_anticancer_tool_plan(
             arguments={"query": drug_name, "limit": "20"},
         ),
         MCPToolCallPlan(
+            tool_id="chembl.get_mechanism_of_action",
+            reason="Collect curated mechanism annotations.",
+            arguments={"chembl_id": "<from_search_compounds_top_hit>"},
+        ),
+        MCPToolCallPlan(
             tool_id="chembl.search_activities",
             reason="Collect potency/activity evidence linked to targets.",
             arguments={
-                "target_or_compound": drug_name,
-                "assay_type": "B",
-                "activity_type": "IC50",
+                "filters": f"compound={drug_name};activity_type=IC50;organism=Homo sapiens",
                 "limit": "100",
             },
         ),
+        MCPToolCallPlan(
+            tool_id="chembl.search_target_diseases",
+            reason="Cross-check target-disease associations in ChEMBL records.",
+            arguments={"target_chembl_id": "<from_search_targets_top_target>"},
+        ),
+        MCPToolCallPlan(
+            tool_id="chembl.search_target_pathways",
+            reason="Map targets to pathways for intervention hypotheses.",
+            arguments={"target_chembl_id": "<from_search_targets_top_target>"},
+        ),
+    ]
+
+    if profile == "chembl":
+        return chembl_plan
+
+    return [
+        *chembl_plan,
         MCPToolCallPlan(
             tool_id="geo.search_series",
             reason="Find relevant RNA-seq datasets for training and holdout.",

@@ -33,6 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="List available MCP tool definitions for this workflow",
     )
+    p.add_argument(
+        "--tool-profile",
+        choices=["chembl", "full"],
+        default="chembl",
+        help="Tool profile: 'chembl' for ChEMBL-MCP-Server only, 'full' for multi-server catalog",
+    )
     return p
 
 
@@ -43,7 +49,7 @@ def main() -> None:
     if config.docs_dir.exists():
         rag.index_dir(config.docs_dir)
     llm = build_default_llm()
-    mcp = NullMCPProvider()
+    mcp = NullMCPProvider(profile=args.tool_profile)
     if args.list_tools:
         print("\n=== KDense MCP Tool Catalog ===\n")
         for t in mcp.list_tools():
@@ -59,7 +65,12 @@ def main() -> None:
         raise SystemExit("--query is required unless --list-tools is set.")
 
     agent = ResearchAgent(rag=rag, llm=llm, mcp=mcp)
-    result = agent.run(args.query, drug_name=args.drug, cancer_type=args.cancer_type)
+    result = agent.run(
+        args.query,
+        drug_name=args.drug,
+        cancer_type=args.cancer_type,
+        tool_profile=args.tool_profile,
+    )
 
     print("\n=== KDense AI Researcher ===\n")
     print(result.answer)

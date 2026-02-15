@@ -32,6 +32,12 @@ List drug-discovery MCP tool definitions:
 kdense-research --list-tools
 ```
 
+List only ChEMBL-MCP-Server tools:
+
+```bash
+kdense-research --list-tools --tool-profile chembl
+```
+
 Run with explicit drug/cancer context for tool planning:
 
 ```bash
@@ -41,12 +47,48 @@ kdense-research \
   --cancer-type NSCLC
 ```
 
+Ingest PubMed abstracts into local RAG docs:
+
+```bash
+kdense-ingest-pubmed \
+  --query "cisplatin resistance NSCLC RNA-seq" \
+  --max-results 25 \
+  --out-dir ./data/literature
+```
+
+Optional for higher NCBI API limits:
+
+```bash
+export NCBI_API_KEY=your_ncbi_api_key
+```
+
 Optional environment variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (default: `gpt-4.1-mini`)
 
 If `OPENAI_API_KEY` is missing, the CLI falls back to a deterministic stub model.
+
+## MCP config (ChEMBL via Podman)
+
+A ready config file is included at:
+
+- `mcp_servers.chembl.json`
+
+Contents:
+
+```json
+{
+  "mcpServers": {
+    "chembl": {
+      "command": "podman",
+      "args": ["run", "-i", "--rm", "chembl-mcp-server"]
+    }
+  }
+}
+```
+
+Add this server block to your Codex MCP client settings and restart the session.
 
 ## Project layout
 

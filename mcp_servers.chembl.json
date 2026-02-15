@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "chembl": {
+      "command": "podman",
+      "args": ["run", "-i", "--rm", "chembl-mcp-server"]
+    }
+  }
+}
+

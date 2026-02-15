@@ -26,6 +26,7 @@ class ResearchAgent:
         query: str,
         drug_name: str = "cisplatin",
         cancer_type: str = "NSCLC",
+        tool_profile: str = "chembl",
     ) -> ResearchAnswer:
         rag_chunks = self.rag.query(query)
         mcp_items = self.mcp.fetch_context(query, top_k=3)
@@ -33,6 +34,7 @@ class ResearchAgent:
             drug_name=drug_name,
             cancer_type=cancer_type,
             phenotype="drug resistance",
+            profile=tool_profile,
         )
         prompt = self._build_prompt(query, rag_chunks, mcp_items, tool_plan)
         response = self.llm.complete(prompt)
