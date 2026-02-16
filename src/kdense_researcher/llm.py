@@ -13,6 +13,8 @@ class LLM(Protocol):
 
 
 class StubLLM:
+    provider = "stub"
+
     def complete(self, prompt: str) -> str:
         return (
             "Stub response (set OPENAI_API_KEY for real model calls).\n\n"
@@ -22,6 +24,8 @@ class StubLLM:
 
 
 class OpenAILLM:
+    provider = "openai"
+
     def __init__(self) -> None:
         from openai import OpenAI
 
@@ -37,9 +41,11 @@ class OpenAILLM:
 
 
 class OllamaLLM:
+    provider = "ollama"
+
     def __init__(self) -> None:
         self.base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-        self.model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+        self.model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
 
     def complete(self, prompt: str) -> str:
         url = f"{self.base_url}/api/generate"
@@ -47,6 +53,8 @@ class OllamaLLM:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.2},
         }
         req = urllib.request.Request(
             url=url,
@@ -60,6 +68,10 @@ class OllamaLLM:
         if not text:
             raise RuntimeError(f"Ollama returned empty response payload: {body}")
         return text
+
+
+def get_llm_provider_name(llm: LLM) -> str:
+    return getattr(llm, "provider", llm.__class__.__name__.lower())
 
 
 def build_default_llm() -> LLM:

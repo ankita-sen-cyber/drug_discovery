@@ -8,11 +8,23 @@ version = "0.1.0"
 description = "MCP + RAG starter for anticancer research workflows"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "scikit-learn>=1.3",
+  "joblib>=1.3",
+]
 
 [project.scripts]
 kdense-research = "kdense_researcher.cli:main"
 kdense-ingest-pubmed = "kdense_researcher.pubmed_ingest:main"
+kdense-api = "kdense_researcher.api:main"
+kdense-bootstrap-gdsc = "kdense_researcher.bootstrap_gdsc_depmap:main"
+kdense-download-gdsc-depmap = "kdense_researcher.download_gdsc_depmap:main"
+kdense-harmonize = "kdense_researcher.harmonize:main"
+kdense-prepare-data = "kdense_researcher.data_pipeline:main"
+kdense-train-baseline = "kdense_researcher.train:main"
+kdense-evaluate = "kdense_researcher.evaluate:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

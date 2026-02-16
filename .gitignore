@@ -19,6 +19,24 @@ dist/
 # Local Codex/editor/session artifacts
 .codex/
 
+# Local env files
+.env
+.env.*
+
+# Logs
+*.log
+
 # Generated literature corpus (keep folder scaffold only)
 data/literature/*
 !data/literature/.gitkeep
+
+# Generated raw datasets (keep scaffold only)
+data/raw/*
+!data/raw/.gitkeep
+
+# Generated processed datasets (keep scaffold only)
+data/processed/*
+!data/processed/.gitkeep
+
+# Training artifacts
+artifacts/
